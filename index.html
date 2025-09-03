@@ -129,15 +129,41 @@
         }
 
         function injectJS() {
-            // Assuming "choose the tab" means current tab, as JS can't select other tabs
-            alert('Injecting into the current tab (as selecting other tabs is not possible via web JS).');
-            const script = prompt('Enter the JavaScript code to run:');
-            if (script) {
-                try {
-                    eval(script); // Runs like a bookmarklet on current tab
-                } catch (error) {
-                    alert('Error running script: ' + error.message);
-                }
+            // Prompt for URL to open in a new tab
+            const url = prompt('Enter the URL to open in a new tab (e.g., https://example.com):');
+            if (!url) {
+                alert('No URL provided. Canceling.');
+                return;
+            }
+            // Prompt for JavaScript code
+            const script = prompt('Enter the JavaScript code to inject (like a bookmarklet):');
+            if (!script) {
+                alert('No script provided. Canceling.');
+                return;
+            }
+            // Open new tab and inject script
+            const newTab = window.open(url, '_blank');
+            if (newTab) {
+                newTab.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head><title>Injected Tab</title></head>
+                    <body>
+                        <p>Loading content from ${url}...</p>
+                        <script>
+                            try {
+                                // Attempt to execute the provided script
+                                (${script})();
+                            } catch (e) {
+                                alert('Error running script: ' + e.message);
+                            }
+                        </script>
+                    </body>
+                    </html>
+                `);
+                newTab.document.close();
+            } else {
+                alert('Failed to open new tab. Ensure pop-ups are allowed.');
             }
         }
     </script>
