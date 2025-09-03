@@ -3,183 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Single Page Website</title>
+    <title>My Space Site</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-        }
-
         body {
-            line-height: 1.6;
-            color: #333;
-        }
-
-        header {
-            background: #2c3e50;
+            background-color: black;
             color: white;
-            padding: 1rem 0;
+            font-family: sans-serif;
+            margin: 0;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .stars {
             position: fixed;
-            width: 100%;
             top: 0;
-            z-index: 1000;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            z-index: -1;
         }
-
-        nav {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 2rem;
+        .star {
+            position: absolute;
+            background: white;
+            width: 1px;
+            height: 1px;
+            border-radius: 50%;
+            opacity: 0.8;
         }
-
-        nav h1 {
-            font-size: 1.5rem;
-        }
-
-        nav ul {
-            list-style: none;
-            display: flex;
-            gap: 1.5rem;
-        }
-
-        nav a {
+        button {
+            background-color: black;
             color: white;
-            text-decoration: none;
-            transition: color 0.3s;
+            border: 1px solid white;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
         }
-
-        nav a:hover {
-            color: #3498db;
+        button:hover {
+            background-color: white;
+            color: black;
         }
-
-        .hero {
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #3498db, #8e44ad);
+        a {
             color: white;
-            text-align: center;
-            padding: 2rem;
-        }
-
-        .hero-content {
-            max-width: 800px;
-        }
-
-        .hero h2 {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .hero p {
-            font-size: 1.2rem;
-            margin-bottom: 2rem;
-        }
-
-        .cta-button {
+            text-decoration: underline;
+            margin: 10px;
             display: inline-block;
-            padding: 0.8rem 1.5rem;
-            background: #e74c3c;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background 0.3s;
         }
-
-        .cta-button:hover {
-            background: #c0392b;
-        }
-
-        .content {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 2rem;
-        }
-
-        .content h3 {
-            font-size: 1.8rem;
-            margin-bottom: 1rem;
-        }
-
-        .content p {
-            margin-bottom: 1rem;
-        }
-
-        footer {
-            background: #2c3e50;
-            color: white;
-            text-align: center;
-            padding: 1rem 0;
-        }
-
-        @media (max-width: 768px) {
-            nav ul {
-                gap: 1rem;
-            }
-
-            .hero h2 {
-                font-size: 1.8rem;
-            }
-
-            .hero p {
-                font-size: 1rem;
-            }
+        #settings {
+            display: none;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border: 1px solid white;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <header>
-        <nav>
-            <h1>My Website</h1>
-            <ul>
-                <li><a href="#home">Home</a></li>
-                <li><a href="#about">About</a></li>
-                <li><a href="#contact">Contact</a></li>
-            </ul>
-        </nav>
-    </header>
+    <div class="stars"></div>
 
-    <section id="home" class="hero">
-        <div class="hero-content">
-            <h2>Welcome to My Website</h2>
-            <p>Discover amazing content and explore our features.</p>
-            <a href="#contact" class="cta-button">Get Started</a>
-        </div>
-    </section>
-
-    <section id="about" class="content">
-        <h3>About Us</h3>
-        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-        <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
-    </section>
-
-    <section id="contact" class="content">
-        <h3>Contact Us</h3>
-        <p>Reach out to us at contact@mywebsite.com or follow us on social media.</p>
-    </section>
-
-    <footer>
-        <p>&copy; 2025 My Website. All rights reserved.</p>
-    </footer>
+    <h1>Welcome to the Space Bypass Site</h1>
+    
+    <button onclick="window.location.href = 'chrome://serviceworker-internals/'">Bypass</button>
+    <button onclick="toggleSettings()">Settings</button>
+    
+    <div id="settings">
+        <button onclick="cloakTab()">Tab Cloaker</button>
+        <button onclick="renameTab()">Tab Renamer</button>
+        <button onclick="injectJS()">JavaScript Injector</button>
+    </div>
+    
+    <br>
+    <a href="https://github.com/titaniumnetwork-dev" target="_blank">Important Github 1</a>
+    <a href="https://github.com/wea-f/ByePassHub" target="_blank">Important Github 2</a>
 
     <script>
-        // Smooth scrolling for navigation links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                const targetId = this.getAttribute('href').substring(1);
-                const targetElement = document.getElementById(targetId);
-                window.scrollTo({
-                    top: targetElement.offsetTop - 60,
-                    behavior: 'smooth'
-                });
-            });
-        });
+        // Generate space stars
+        const starsDiv = document.querySelector('.stars');
+        for (let i = 0; i < 300; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.top = `${Math.random() * 100}%`;
+            star.style.left = `${Math.random() * 100}%`;
+            star.style.animation = `twinkle ${Math.random() * 2 + 1}s infinite`;
+            starsDiv.appendChild(star);
+        }
+        // Add twinkle animation
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes twinkle {
+                0% { opacity: 0.8; }
+                50% { opacity: 0.2; }
+                100% { opacity: 0.8; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        function toggleSettings() {
+            const settings = document.getElementById('settings');
+            settings.style.display = settings.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function cloakTab() {
+            // Open current site in a new about:blank tab with iframe (cloaks it)
+            const url = location.href;
+            const blankTab = window.open('about:blank', '_blank');
+            if (blankTab) {
+                blankTab.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head><title></title></head>
+                    <body style="margin:0;padding:0;">
+                        <iframe src="${url}" style="position:fixed;top:0;left:0;width:100%;height:100%;border:none;"></iframe>
+                    </body>
+                    </html>
+                `);
+                blankTab.document.close();
+            }
+        }
+
+        function renameTab() {
+            const newTitle = prompt('Enter new tab title:');
+            if (newTitle) {
+                document.title = newTitle;
+            }
+        }
+
+        function injectJS() {
+            // Assuming "choose the tab" means current tab, as JS can't select other tabs
+            alert('Injecting into the current tab (as selecting other tabs is not possible via web JS).');
+            const script = prompt('Enter the JavaScript code to run:');
+            if (script) {
+                try {
+                    eval(script); // Runs like a bookmarklet on current tab
+                } catch (error) {
+                    alert('Error running script: ' + error.message);
+                }
+            }
+        }
     </script>
 </body>
 </html>
