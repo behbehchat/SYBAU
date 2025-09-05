@@ -5,15 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>im just a beh beh site</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+        
         body {
             background-color: black;
             color: white;
-            font-family: sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             position: relative;
-            overflow: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
         }
+        
         .stars {
             position: fixed;
             top: 0;
@@ -23,59 +32,164 @@
             background: transparent;
             z-index: -1;
         }
+        
         .star {
             position: absolute;
             background: white;
-            width: 1px;
-            height: 1px;
+            width: 2px;
+            height: 2px;
             border-radius: 50%;
             opacity: 0.8;
         }
+        
+        .container {
+            width: 90%;
+            max-width: 800px;
+            margin: 40px auto;
+            text-align: center;
+            z-index: 1;
+        }
+        
+        h1 {
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px 0;
+            gap: 15px;
+        }
+        
         button {
             background-color: black;
             color: white;
             border: 1px solid white;
-            padding: 10px 20px;
-            margin: 10px;
+            padding: 12px 24px;
             cursor: pointer;
+            font-size: 16px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
         }
+        
         button:hover {
             background-color: white;
             color: black;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
         }
+        
         a {
             color: white;
-            text-decoration: underline;
+            text-decoration: none;
             margin: 10px;
             display: inline-block;
+            padding: 10px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            transition: all 0.3s ease;
         }
+        
+        a:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            text-decoration: underline;
+            transform: translateY(-2px);
+        }
+        
         #settings {
             display: none;
             background-color: rgba(0, 0, 0, 0.8);
-            padding: 20px;
+            padding: 25px;
             border: 1px solid white;
             margin-top: 20px;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .settings-title {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 4px;
+            border: 1px solid white;
+            display: none;
+            z-index: 1000;
+            animation: slideIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        
+        @keyframes twinkle {
+            0% { opacity: 0.8; }
+            50% { opacity: 0.2; }
+            100% { opacity: 0.8; }
+        }
+        
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                width: 80%;
+            }
         }
     </style>
 </head>
 <body>
     <div class="stars"></div>
-
-    <h1>sybau cuz im js a beh beh</h1>
     
-    <button onclick="window.location.href = 'chrome://serviceworker-internals/'">Bypass</button>
-    <button onclick="toggleSettings()">Settings</button>
-    
-    <div id="settings">
-        <button onclick="cloakTab()">Tab Cloaker</button>
-        <button onclick="renameTab()">Tab Renamer</button>
-        <button onclick="injectJS()">JavaScript Injector</button>
+    <div class="container">
+        <h1>sybau cuz im js a beh beh</h1>
+        
+        <div class="button-group">
+            <button id="bypassBtn">Bypass</button>
+            <button id="settingsBtn">Settings</button>
+        </div>
+        
+        <div id="settings">
+            <h3 class="settings-title">Settings Menu</h3>
+            <div class="button-group">
+                <button id="cloakBtn">Tab Cloaker</button>
+                <button id="renameBtn">Tab Renamer</button>
+                <button id="injectBtn">JavaScript Injector</button>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <a href="https://github.com/titaniumnetwork-dev" target="_blank">Important Github 1</a>
+            <a href="https://github.com/wea-f/ByePassHub" target="_blank">Important Github 2</a>
+        </div>
     </div>
     
-    <br>
-    <a href="https://github.com/titaniumnetwork-dev" target="_blank">Important Github 1</a>
-    <a href="https://github.com/wea-f/ByePassHub" target="_blank">Important Github 2</a>
-
+    <div id="notification" class="notification"></div>
+    
     <script>
         // Generate space stars
         const starsDiv = document.querySelector('.stars');
@@ -87,83 +201,115 @@
             star.style.animation = `twinkle ${Math.random() * 2 + 1}s infinite`;
             starsDiv.appendChild(star);
         }
-        // Add twinkle animation
-        const style = document.createElement('style');
-        style.innerHTML = `
-            @keyframes twinkle {
-                0% { opacity: 0.8; }
-                50% { opacity: 0.2; }
-                100% { opacity: 0.8; }
+        
+        // Notification system
+        function showNotification(message, duration = 3000) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, duration);
+        }
+        
+        // Button event listeners
+        document.getElementById('bypassBtn').addEventListener('click', function() {
+            try {
+                window.location.href = 'chrome://serviceworker-internals/';
+            } catch (e) {
+                showNotification('Unable to access chrome:// URLs. This may only work in Chrome-based browsers.');
             }
-        `;
-        document.head.appendChild(style);
-
+        });
+        
+        document.getElementById('settingsBtn').addEventListener('click', toggleSettings);
+        document.getElementById('cloakBtn').addEventListener('click', cloakTab);
+        document.getElementById('renameBtn').addEventListener('click', renameTab);
+        document.getElementById('injectBtn').addEventListener('click', injectJS);
+        
         function toggleSettings() {
             const settings = document.getElementById('settings');
-            settings.style.display = settings.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function cloakTab() {
-            // Open current site in a new about:blank tab with iframe (cloaks it)
-            const url = location.href;
-            const blankTab = window.open('about:blank', '_blank');
-            if (blankTab) {
-                blankTab.document.write(`
-                    <!DOCTYPE html>
-                    <html>
-                    <head><title></title></head>
-                    <body style="margin:0;padding:0;">
-                        <iframe src="${url}" style="position:fixed;top:0;left:0;width:100%;height:100%;border:none;"></iframe>
-                    </body>
-                    </html>
-                `);
-                blankTab.document.close();
+            if (settings.style.display === 'none' || settings.style.display === '') {
+                settings.style.display = 'block';
+            } else {
+                settings.style.display = 'none';
             }
         }
-
+        
+        function cloakTab() {
+            try {
+                const url = location.href;
+                const blankTab = window.open('about:blank', '_blank');
+                
+                if (blankTab) {
+                    blankTab.document.write(`
+                        <!DOCTYPE html>
+                        <html>
+                        <head><title>Google</title></head>
+                        <body style="margin:0;padding:0;">
+                            <iframe src="${url}" style="position:fixed;top:0;left:0;width:100%;height:100%;border:none;"></iframe>
+                        </body>
+                        </html>
+                    `);
+                    blankTab.document.close();
+                    showNotification('Tab cloaked successfully!');
+                } else {
+                    showNotification('Failed to open new tab. Please allow pop-ups.');
+                }
+            } catch (e) {
+                showNotification('Error cloaking tab: ' + e.message);
+            }
+        }
+        
         function renameTab() {
             const newTitle = prompt('Enter new tab title:');
             if (newTitle) {
                 document.title = newTitle;
+                showNotification('Tab renamed successfully!');
+            } else {
+                showNotification('Tab rename canceled.');
             }
         }
-
+        
         function injectJS() {
-            // Prompt for URL to open in a new tab
             const url = prompt('Enter the URL to open in a new tab (e.g., https://example.com):');
             if (!url) {
-                alert('No URL provided. Canceling.');
+                showNotification('No URL provided. Operation canceled.');
                 return;
             }
-            // Prompt for JavaScript code
-            const script = prompt('Enter the JavaScript code to inject (like a bookmarklet):');
+            
+            const script = prompt('Enter the JavaScript code to inject:');
             if (!script) {
-                alert('No script provided. Canceling.');
+                showNotification('No script provided. Operation canceled.');
                 return;
             }
-            // Open new tab and inject script
-            const newTab = window.open(url, '_blank');
-            if (newTab) {
-                newTab.document.write(`
-                    <!DOCTYPE html>
-                    <html>
-                    <head><title>Injected Tab</title></head>
-                    <body>
-                        <p>Loading content from ${url}...</p>
-                        <script>
-                            try {
-                                // Attempt to execute the provided script
-                                (${script})();
-                            } catch (e) {
-                                alert('Error running script: ' + e.message);
-                            }
-                        </script>
-                    </body>
-                    </html>
-                `);
-                newTab.document.close();
-            } else {
-                alert('Failed to open new tab. Ensure pop-ups are allowed.');
+            
+            try {
+                const newTab = window.open(url, '_blank');
+                if (newTab) {
+                    newTab.document.write(`
+                        <!DOCTYPE html>
+                        <html>
+                        <head><title>Injected Tab</title></head>
+                        <body>
+                            <p>Loading content from ${url}...</p>
+                            <script>
+                                try {
+                                    (${script})();
+                                } catch (e) {
+                                    alert('Error running script: ' + e.message);
+                                }
+                            </script>
+                        </body>
+                        </html>
+                    `);
+                    newTab.document.close();
+                    showNotification('JavaScript injected successfully!');
+                } else {
+                    showNotification('Failed to open new tab. Please allow pop-ups.');
+                }
+            } catch (e) {
+                showNotification('Error injecting JavaScript: ' + e.message);
             }
         }
     </script>
