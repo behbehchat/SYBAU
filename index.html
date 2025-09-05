@@ -128,6 +128,11 @@
             background: #b95565;
         }
         
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+        }
+        
         .modal {
             display: none;
             position: fixed;
@@ -252,6 +257,8 @@
             padding: 20px;
             overflow-y: auto;
             background: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
         }
         
         .message {
@@ -273,7 +280,6 @@
             background: var(--accent);
             color: black;
             align-self: flex-end;
-            margin-left: auto;
             border-bottom-right-radius: 5px;
         }
         
@@ -283,6 +289,7 @@
             font-style: italic;
             text-align: center;
             margin: 20px 0;
+            max-width: 100%;
         }
         
         .message-sender {
@@ -370,12 +377,28 @@
         }
         
         .ip-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .peer-id-display {
             padding: 8px 12px;
             background: var(--bg-secondary);
             border-radius: 5px;
             font-family: monospace;
             border: 1px solid #444;
             font-size: 0.9rem;
+        }
+        
+        .copy-btn {
+            background: var(--accent);
+            color: black;
+            border: none;
+            border-radius: 5px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 0.8rem;
         }
         
         .gif-container {
@@ -389,6 +412,8 @@
             max-width: 100%;
             border-radius: 8px;
             margin-top: 5px;
+            max-height: 100px;
+            object-fit: cover;
         }
         
         @media (max-width: 768px) {
@@ -417,6 +442,17 @@
             .header-controls {
                 width: 100%;
                 justify-content: center;
+            }
+            
+            .connection-panel {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            
+            .ip-display {
+                width: 100%;
+                justify-content: space-between;
             }
         }
         
@@ -499,7 +535,10 @@
                 <span class="status-indicator status-disconnected" id="statusIndicator"></span>
                 <span id="connectionStatus">Disconnected</span>
             </div>
-            <div class="ip-display" id="ipDisplay">Not connected</div>
+            <div class="ip-display">
+                <span class="peer-id-display" id="peerIdDisplay">Not connected</span>
+                <button class="copy-btn" id="copyPeerIdBtn" disabled>Copy</button>
+            </div>
         </div>
     </div>
     
@@ -559,9 +598,10 @@
         const userList = document.getElementById('userList');
         const statusIndicator = document.getElementById('statusIndicator');
         const connectionStatus = document.getElementById('connectionStatus');
-        const ipDisplay = document.getElementById('ipDisplay');
+        const peerIdDisplay = document.getElementById('peerIdDisplay');
         const currentUserItem = document.getElementById('currentUserItem');
         const currentPeerId = document.getElementById('currentPeerId');
+        const copyPeerIdBtn = document.getElementById('copyPeerIdBtn');
 
         // Application State
         let currentUser = null;
@@ -570,6 +610,7 @@
         let connections = [];
         let messages = [];
         let users = {};
+        let connectionAttempts = {};
 
         // Initialize the application
         function init() {
@@ -589,6 +630,10 @@
                     sendMessage();
                 }
             });
+            copyPeerIdBtn.addEventListener('click', copyPeerId);
+            
+            // Focus on username input
+            usernameInput.focus();
         }
 
         // Handle user login
@@ -617,11 +662,13 @@
         // Show server modal
         function showServerModal() {
             serverModal.style.display = 'flex';
+            serverKeyInput.focus();
         }
 
         // Show connect modal
         function showConnectModal() {
             connectModal.style.display = 'flex';
+            remotePeerIdInput.focus();
         }
 
         // Activate server
@@ -649,8 +696,13 @@
 
         // Initialize PeerJS
         function initializePeer(isHost, remoteId = null) {
-            // Create a peer - if hosting, we'll let PeerJS generate an ID
-            peer = isHost ? new Peer() : new Peer();
+            // Generate a shorter peer ID
+            const peerId = isHost ? 'beh-' + Math.floor(100 + Math.random() * 900) : undefined;
+            
+            // Create a peer
+            peer = new Peer(peerId, {
+                debug: 2
+            });
             
             peer.on('open', (id) => {
                 // Update connection status
@@ -663,11 +715,11 @@
                 
                 if (isHost) {
                     showNotification('Server hosted successfully with ID: ' + id);
-                    ipDisplay.textContent = 'Your ID: ' + id;
-                    addSystemMessage('You are now hosting the chat. Share your ID: ' + id);
+                    peerIdDisplay.textContent = id;
+                    addSystemMessage('You are now hosting the chat. Your ID: ' + id);
                 } else {
                     showNotification('Connected with ID: ' + id);
-                    ipDisplay.textContent = 'Your ID: ' + id;
+                    peerIdDisplay.textContent = 'Connected to: ' + remoteId;
                     
                     // Connect to the remote peer
                     const conn = peer.connect(remoteId);
@@ -677,13 +729,17 @@
                 // Enable messaging
                 messageInput.disabled = false;
                 sendMessageBtn.disabled = false;
+                copyPeerIdBtn.disabled = false;
                 
                 // Update current peer ID display
                 currentPeerId.textContent = 'ID: ' + id;
             });
             
             peer.on('connection', (conn) => {
-                setupConnection(conn);
+                // Check if we already have this connection to prevent duplicates
+                if (!connections.some(c => c.peer === conn.peer)) {
+                    setupConnection(conn);
+                }
             });
             
             peer.on('error', (err) => {
@@ -702,6 +758,12 @@
 
         // Set up a data connection
         function setupConnection(conn) {
+            // Track connection attempts to prevent duplicates
+            if (connectionAttempts[conn.peer]) {
+                return;
+            }
+            connectionAttempts[conn.peer] = true;
+            
             conn.on('open', () => {
                 // Add to connections list
                 connections.push(conn);
@@ -730,12 +792,18 @@
                     updateUserList();
                 }
                 
+                // Remove from connection attempts
+                delete connectionAttempts[conn.peer];
+                
                 showNotification('Peer disconnected: ' + conn.peer, true);
             });
             
             conn.on('error', (err) => {
                 console.error('Connection error:', err);
                 showNotification('Connection error with peer: ' + conn.peer, true);
+                
+                // Remove from connection attempts
+                delete connectionAttempts[conn.peer];
             });
         }
 
@@ -743,16 +811,19 @@
         function handleData(data, conn) {
             switch (data.type) {
                 case 'user_join':
-                    users[conn.peer] = data.user;
-                    users[conn.peer].peerId = conn.peer;
-                    updateUserList();
-                    addSystemMessage(data.user.name + ' joined the chat');
-                    
-                    // Send our user info back
-                    conn.send({
-                        type: 'user_join',
-                        user: currentUser
-                    });
+                    // Only add if we don't already have this user
+                    if (!users[conn.peer]) {
+                        users[conn.peer] = data.user;
+                        users[conn.peer].peerId = conn.peer;
+                        updateUserList();
+                        addSystemMessage(data.user.name + ' joined the chat');
+                        
+                        // Send our user info back
+                        conn.send({
+                            type: 'user_join',
+                            user: currentUser
+                        });
+                    }
                     break;
                     
                 case 'message':
@@ -786,10 +857,12 @@
                 
                 // Send to all connections
                 connections.forEach(conn => {
-                    conn.send({
-                        type: 'message',
-                        message: message
-                    });
+                    if (conn.open) {
+                        conn.send({
+                            type: 'message',
+                            message: message
+                        });
+                    }
                 });
                 
                 // Clear input
@@ -861,15 +934,31 @@
             }
         }
 
+        // Copy peer ID to clipboard
+        function copyPeerId() {
+            if (peer && peer.id) {
+                navigator.clipboard.writeText(peer.id)
+                    .then(() => {
+                        showNotification('Peer ID copied to clipboard!');
+                    })
+                    .catch(err => {
+                        showNotification('Failed to copy Peer ID', true);
+                        console.error('Failed to copy: ', err);
+                    });
+            }
+        }
+
         // Disconnect from all peers
         function disconnect() {
             if (peer) {
                 // Notify all connections that we're leaving
                 connections.forEach(conn => {
-                    conn.send({
-                        type: 'user_leave',
-                        userId: currentUser.id
-                    });
+                    if (conn.open) {
+                        conn.send({
+                            type: 'user_leave',
+                            userId: currentUser.id
+                        });
+                    }
                 });
                 
                 peer.destroy();
@@ -878,10 +967,12 @@
             // Reset state
             connections = [];
             users = {};
+            connectionAttempts = {};
             updateConnectionStatus('disconnected');
             messageInput.disabled = true;
             sendMessageBtn.disabled = true;
-            ipDisplay.textContent = 'Not connected';
+            copyPeerIdBtn.disabled = true;
+            peerIdDisplay.textContent = 'Not connected';
             currentPeerId.textContent = 'Not connected';
             
             // Remove all users except current user
