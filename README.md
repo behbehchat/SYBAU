@@ -4,4 +4,4 @@ this is a project for you to contact your friends and family while your in schoo
 on a school chromebook and its pretty cool fr so tuff
 
 
-im just a behbeh, also the beta version is a older beta version the current website is a more updated version of the beta version
+im just a behbeh, also the beta version is a older beta version the current website is a more updated version of the beta version so its not called beta anymore
