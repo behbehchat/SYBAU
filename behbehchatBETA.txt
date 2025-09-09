@@ -653,6 +653,14 @@
             transform: none;
             filter: none;
         }
+        
+        /* Notification permission button */
+        .notification-permission {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1001;
+        }
     </style>
 </head>
 <body>
@@ -821,11 +829,26 @@
         let mediaRecorder = null;
         let audioChunks = [];
         let isRecording = false;
+        
+        // Notification state
+        let unreadMessages = 0;
+        let isPageVisible = true;
+        let notificationPermission = false;
+        const originalTitle = document.title;
 
         // Initialize the application
         function init() {
             // Show login modal first
             loginModal.style.display = 'flex';
+            
+            // Request notification permission
+            requestNotificationPermission();
+            
+            // Set up page visibility detection
+            setupPageVisibility();
+            
+            // Set up beforeunload handler
+            window.addEventListener('beforeunload', handleBeforeUnload);
             
             // Event listeners
             loginBtn.addEventListener('click', handleLogin);
@@ -868,6 +891,69 @@
             
             // Initialize button states
             updateButtonStates();
+        }
+
+        // Request notification permission
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                console.log("This browser does not support notifications");
+                return;
+            }
+            
+            if (Notification.permission === "granted") {
+                notificationPermission = true;
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    notificationPermission = permission === "granted";
+                });
+            }
+        }
+
+        // Set up page visibility detection
+        function setupPageVisibility() {
+            // Set the name of the hidden property and the change event for visibility
+            let hidden, visibilityChange;
+            if (typeof document.hidden !== "undefined") {
+                hidden = "hidden";
+                visibilityChange = "visibilitychange";
+            } else if (typeof document.msHidden !== "undefined") {
+                hidden = "msHidden";
+                visibilityChange = "msvisibilitychange";
+            } else if (typeof document.webkitHidden !== "undefined") {
+                hidden = "webkitHidden";
+                visibilityChange = "webkitvisibilitychange";
+            }
+            
+            document.addEventListener(visibilityChange, handleVisibilityChange, false);
+            
+            function handleVisibilityChange() {
+                isPageVisible = !document[hidden];
+                if (isPageVisible) {
+                    // Reset unread messages when page becomes visible
+                    resetUnreadMessages();
+                }
+            }
+        }
+
+        // Handle beforeunload event
+        function handleBeforeUnload(e) {
+            if (peer && connections.length > 0) {
+                // Notify other users that we're leaving
+                connections.forEach(conn => {
+                    if (conn.open) {
+                        conn.send({
+                            type: 'user_leave',
+                            userId: currentUser.id,
+                            userName: currentUser.name
+                        });
+                    }
+                });
+                
+                // For modern browsers
+                e.preventDefault();
+                // Chrome requires returnValue to be set
+                e.returnValue = '';
+            }
         }
 
         // Update button states based on connection status
@@ -954,7 +1040,7 @@
             connectRoomCodeInput.focus();
         }
 
-        // Activate server
+        // Activate server - FIXED VERSION
         function activateServer() {
             const key = serverKeyInput.value.trim();
             const roomCode = roomCodeInput.value.trim();
@@ -978,8 +1064,7 @@
         function connectToServer() {
             const roomCode = connectRoomCodeInput.value.trim();
             if (roomCode.length === 3) {
-                const remoteId = 'beh-' + roomCode;
-                initializePeer(false, remoteId);
+                initializePeer(false, roomCode);
                 connectModal.style.display = 'none';
                 connectRoomCodeInput.value = '';
             } else {
@@ -987,13 +1072,13 @@
             }
         }
 
-        // Initialize PeerJS
-        function initializePeer(isHost, idParam = null) {
+        // Initialize PeerJS - FIXED VERSION
+        function initializePeer(isHost, roomCode = null) {
             // Generate a peer ID based on whether we're hosting or connecting
             let peerId;
             if (isHost) {
                 // For host, use the room code to create a custom ID
-                peerId = 'beh-' + idParam;
+                peerId = 'behbeh-' + roomCode;
             } else {
                 // For client, let PeerJS generate a random ID
                 peerId = undefined;
@@ -1025,10 +1110,10 @@
                     addSystemMessage('You are now hosting the chat. Your ID: ' + id);
                 } else {
                     showNotification('Connected with ID: ' + id);
-                    peerIdDisplay.textContent = 'Connected to: ' + idParam;
+                    peerIdDisplay.textContent = 'Connected to: behbeh-' + roomCode;
                     
                     // Connect to the remote peer
-                    const conn = peer.connect(idParam);
+                    const conn = peer.connect('behbeh-' + roomCode);
                     setupConnection(conn);
                 }
                 
@@ -1048,7 +1133,14 @@
             
             peer.on('error', (err) => {
                 console.error('Peer error:', err);
-                showNotification('Connection error: ' + err.type, true);
+                
+                // Handle specific error cases
+                if (err.type === 'unavailable-id') {
+                    showNotification('Room code already taken. Please try a different one.', true);
+                } else {
+                    showNotification('Connection error: ' + err.type, true);
+                }
+                
                 updateConnectionStatus('disconnected');
                 updateButtonStates();
             });
@@ -1149,7 +1241,7 @@
                     
                 case 'user_leave':
                     if (users[data.userId]) {
-                        addSystemMessage(users[data.userId].name + ' left the chat');
+                        addSystemMessage(data.userName + ' left the chat');
                         delete users[data.userId];
                         updateUserList();
                     }
@@ -1234,6 +1326,12 @@
             
             // Add to messages array
             messages.push(message);
+            
+            // If this is a received message and the page is not visible
+            if (!isCurrentUser && !isPageVisible) {
+                incrementUnreadMessages();
+                showDesktopNotification(message.senderName, message.text);
+            }
         }
         
         // Add a media message to the UI
@@ -1279,6 +1377,12 @@
             
             // Add to messages array
             messages.push(mediaMessage);
+            
+            // If this is a received message and the page is not visible
+            if (!isCurrentUser && !isPageVisible) {
+                incrementUnreadMessages();
+                showDesktopNotification(mediaMessage.senderName, `Sent a ${mediaMessage.type}`);
+            }
         }
 
         // Add a system message
@@ -1444,7 +1548,8 @@
                     if (conn.open) {
                         conn.send({
                             type: 'user_leave',
-                            userId: currentUser.id
+                            userId: currentUser.id,
+                            userName: currentUser.name
                         });
                         conn.close();
                     }
@@ -1523,6 +1628,41 @@
                     notification.remove();
                 }, 300);
             }, 3000);
+        }
+        
+        // Show desktop notification
+        function showDesktopNotification(sender, message) {
+            if (!notificationPermission || !("Notification" in window)) {
+                return;
+            }
+            
+            if (Notification.permission === "granted") {
+                new Notification(sender + " - Beh Beh Chat", {
+                    body: message,
+                    icon: "https://media.tenor.com/6fwaqkP8tP0AAAAC/niche-fruit.gif"
+                });
+            }
+        }
+        
+        // Increment unread messages count
+        function incrementUnreadMessages() {
+            unreadMessages++;
+            updateTitle();
+        }
+        
+        // Reset unread messages count
+        function resetUnreadMessages() {
+            unreadMessages = 0;
+            updateTitle();
+        }
+        
+        // Update document title with unread count
+        function updateTitle() {
+            if (unreadMessages > 0) {
+                document.title = `(${unreadMessages}) ${originalTitle}`;
+            } else {
+                document.title = originalTitle;
+            }
         }
 
         // Helper functions
