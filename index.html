@@ -382,6 +382,7 @@
             height: 10px;
             border-radius: 50%;
             margin-right: 8px;
+            transition: background-color 0.3s ease;
         }
         
         .status-connected {
@@ -421,6 +422,11 @@
             font-size: 0.8rem;
         }
         
+        .copy-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
         .gif-container {
             margin-top: 15px;
             text-align: center;
@@ -457,6 +463,95 @@
             0% { transform: translateY(0px); }
             50% { transform: translateY(-15px); }
             100% { transform: translateY(0px); }
+        }
+        
+        /* Media message styles */
+        .media-message {
+            max-width: 300px;
+        }
+        
+        .media-content {
+            margin-top: 8px;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .media-content img, .media-content video {
+            width: 100%;
+            max-height: 200px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .audio-player {
+            width: 100%;
+            height: 40px;
+            margin-top: 8px;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        /* Media controls */
+        .media-controls {
+            display: flex;
+            gap: 10px;
+            margin-right: 10px;
+        }
+        
+        .media-btn {
+            background: var(--bg-secondary);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+        }
+        
+        .media-btn:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .record-btn.recording {
+            animation: pulse 1.5s infinite;
+            background: var(--danger);
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        /* Recording indicator */
+        .recording-indicator {
+            display: none;
+            align-items: center;
+            margin-right: 10px;
+            color: var(--danger);
+        }
+        
+        .recording-indicator.active {
+            display: flex;
+        }
+        
+        .recording-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--danger);
+            border-radius: 50%;
+            margin-right: 5px;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
         }
         
         @media (max-width: 768px) {
@@ -506,6 +601,11 @@
             .floating-gif img {
                 width: 80px;
             }
+            
+            .media-controls {
+                margin-bottom: 10px;
+                justify-content: center;
+            }
         }
         
         .notification {
@@ -537,6 +637,30 @@
             letter-spacing: 5px;
             text-align: center;
         }
+        
+        /* Hidden file input */
+        .hidden-input {
+            display: none;
+        }
+        
+        /* Button disabled state */
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn:disabled:hover {
+            transform: none;
+            filter: none;
+        }
+        
+        /* Notification permission button */
+        .notification-permission {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1001;
+        }
     </style>
 </head>
 <body>
@@ -549,9 +673,9 @@
                 <h1>Beh Beh Chat</h1>
             </div>
             <div class="header-controls">
-                <button class="btn btn-success" id="hostServerBtn">Host Server</button>
-                <button class="btn btn-secondary" id="showConnectModalBtn">Connect</button>
-                <button class="btn btn-danger" id="disconnectBtn">Disconnect</button>
+                <button class="btn btn-success" id="hostServerBtn" disabled>Host Server</button>
+                <button class="btn btn-secondary" id="showConnectModalBtn" disabled>Connect</button>
+                <button class="btn btn-danger" id="disconnectBtn" disabled>Disconnect</button>
             </div>
         </header>
         
@@ -583,6 +707,19 @@
                 </div>
                 
                 <div class="input-area">
+                    <div class="media-controls">
+                        <button class="media-btn" id="imageButton" title="Send Image" disabled>📷</button>
+                        <button class="media-btn" id="videoButton" title="Send Video" disabled>🎥</button>
+                        <button class="media-btn record-btn" id="recordButton" title="Record Audio" disabled>🎤</button>
+                        <input type="file" id="imageInput" accept="image/*" class="hidden-input">
+                        <input type="file" id="videoInput" accept="video/*" class="hidden-input">
+                    </div>
+                    
+                    <div class="recording-indicator" id="recordingIndicator">
+                        <div class="recording-dot"></div>
+                        <span>Recording...</span>
+                    </div>
+                    
                     <input type="text" class="message-input" id="messageInput" placeholder="Type your message..." disabled>
                     <button class="send-btn" id="sendMessageBtn" disabled>Send</button>
                 </div>
@@ -672,6 +809,12 @@
         const currentPeerId = document.getElementById('currentPeerId');
         const copyPeerIdBtn = document.getElementById('copyPeerIdBtn');
         const floatingGif = document.getElementById('floatingGif');
+        const imageButton = document.getElementById('imageButton');
+        const videoButton = document.getElementById('videoButton');
+        const recordButton = document.getElementById('recordButton');
+        const imageInput = document.getElementById('imageInput');
+        const videoInput = document.getElementById('videoInput');
+        const recordingIndicator = document.getElementById('recordingIndicator');
 
         // Application State
         let currentUser = null;
@@ -681,11 +824,31 @@
         let messages = [];
         let users = {};
         let connectionAttempts = {};
+        
+        // Media recording state
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        
+        // Notification state
+        let unreadMessages = 0;
+        let isPageVisible = true;
+        let notificationPermission = false;
+        const originalTitle = document.title;
 
         // Initialize the application
         function init() {
             // Show login modal first
             loginModal.style.display = 'flex';
+            
+            // Request notification permission
+            requestNotificationPermission();
+            
+            // Set up page visibility detection
+            setupPageVisibility();
+            
+            // Set up beforeunload handler
+            window.addEventListener('beforeunload', handleBeforeUnload);
             
             // Event listeners
             loginBtn.addEventListener('click', handleLogin);
@@ -702,15 +865,113 @@
             });
             copyPeerIdBtn.addEventListener('click', copyPeerId);
             
+            // Media controls event listeners
+            imageButton.addEventListener('click', () => imageInput.click());
+            videoButton.addEventListener('click', () => videoInput.click());
+            imageInput.addEventListener('change', handleImageSelect);
+            videoInput.addEventListener('change', handleVideoSelect);
+            recordButton.addEventListener('click', toggleRecording);
+            
             // Room code validation
             roomCodeInput.addEventListener('input', validateRoomCode);
             connectRoomCodeInput.addEventListener('input', validateRoomCode);
+            
+            // Close modals when clicking outside
+            window.addEventListener('click', (e) => {
+                if (e.target === loginModal) loginModal.style.display = 'none';
+                if (e.target === serverModal) serverModal.style.display = 'none';
+                if (e.target === connectModal) connectModal.style.display = 'none';
+            });
             
             // Focus on username input
             usernameInput.focus();
             
             // Position floating GIF randomly
             positionFloatingGif();
+            
+            // Initialize button states
+            updateButtonStates();
+        }
+
+        // Request notification permission
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                console.log("This browser does not support notifications");
+                return;
+            }
+            
+            if (Notification.permission === "granted") {
+                notificationPermission = true;
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    notificationPermission = permission === "granted";
+                });
+            }
+        }
+
+        // Set up page visibility detection
+        function setupPageVisibility() {
+            // Set the name of the hidden property and the change event for visibility
+            let hidden, visibilityChange;
+            if (typeof document.hidden !== "undefined") {
+                hidden = "hidden";
+                visibilityChange = "visibilitychange";
+            } else if (typeof document.msHidden !== "undefined") {
+                hidden = "msHidden";
+                visibilityChange = "msvisibilitychange";
+            } else if (typeof document.webkitHidden !== "undefined") {
+                hidden = "webkitHidden";
+                visibilityChange = "webkitvisibilitychange";
+            }
+            
+            document.addEventListener(visibilityChange, handleVisibilityChange, false);
+            
+            function handleVisibilityChange() {
+                isPageVisible = !document[hidden];
+                if (isPageVisible) {
+                    // Reset unread messages when page becomes visible
+                    resetUnreadMessages();
+                }
+            }
+        }
+
+        // Handle beforeunload event
+        function handleBeforeUnload(e) {
+            if (peer && connections.length > 0) {
+                // Notify other users that we're leaving
+                connections.forEach(conn => {
+                    if (conn.open) {
+                        conn.send({
+                            type: 'user_leave',
+                            userId: currentUser.id,
+                            userName: currentUser.name
+                        });
+                    }
+                });
+                
+                // For modern browsers
+                e.preventDefault();
+                // Chrome requires returnValue to be set
+                e.returnValue = '';
+            }
+        }
+
+        // Update button states based on connection status
+        function updateButtonStates() {
+            const isConnected = peer && peer.disconnected === false && peer.destroyed === false;
+            
+            // Header buttons
+            hostServerBtn.disabled = !currentUser || isConnected;
+            showConnectModalBtn.disabled = !currentUser || isConnected;
+            disconnectBtn.disabled = !isConnected;
+            
+            // Chat buttons
+            messageInput.disabled = !isConnected;
+            sendMessageBtn.disabled = !isConnected;
+            imageButton.disabled = !isConnected;
+            videoButton.disabled = !isConnected;
+            recordButton.disabled = !isConnected;
+            copyPeerIdBtn.disabled = !isConnected || !peer || !peer.id;
         }
 
         // Validate room code input
@@ -751,19 +1012,30 @@
                 showNotification('Welcome to Beh Beh Chat, ' + username + '!');
                 
                 // Enable connection options
-                hostServerBtn.disabled = false;
-                showConnectModalBtn.disabled = false;
+                updateButtonStates();
+            } else {
+                showNotification('Please enter a username', true);
             }
         }
 
         // Show server modal
         function showServerModal() {
+            if (!currentUser) {
+                showNotification('Please login first', true);
+                loginModal.style.display = 'flex';
+                return;
+            }
             serverModal.style.display = 'flex';
             serverKeyInput.focus();
         }
 
         // Show connect modal
         function showConnectModal() {
+            if (!currentUser) {
+                showNotification('Please login first', true);
+                loginModal.style.display = 'flex';
+                return;
+            }
             connectModal.style.display = 'flex';
             connectRoomCodeInput.focus();
         }
@@ -778,6 +1050,8 @@
                     isServerHost = true;
                     initializePeer(true, roomCode);
                     serverModal.style.display = 'none';
+                    serverKeyInput.value = '';
+                    roomCodeInput.value = '';
                 } else {
                     showNotification('Please enter a valid 3-digit room code', true);
                 }
@@ -793,6 +1067,7 @@
                 const remoteId = 'beh-' + roomCode;
                 initializePeer(false, remoteId);
                 connectModal.style.display = 'none';
+                connectRoomCodeInput.value = '';
             } else {
                 showNotification('Please enter a valid 3-digit room code', true);
             }
@@ -812,7 +1087,13 @@
             
             // Create a peer
             peer = new Peer(peerId, {
-                debug: 2
+                debug: 2,
+                config: {
+                    'iceServers': [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
+                }
             });
             
             peer.on('open', (id) => {
@@ -837,13 +1118,11 @@
                     setupConnection(conn);
                 }
                 
-                // Enable messaging
-                messageInput.disabled = false;
-                sendMessageBtn.disabled = false;
-                copyPeerIdBtn.disabled = false;
-                
                 // Update current peer ID display
                 currentPeerId.textContent = 'ID: ' + id;
+                
+                // Update button states
+                updateButtonStates();
             });
             
             peer.on('connection', (conn) => {
@@ -857,14 +1136,22 @@
                 console.error('Peer error:', err);
                 showNotification('Connection error: ' + err.type, true);
                 updateConnectionStatus('disconnected');
+                updateButtonStates();
             });
             
             peer.on('disconnected', () => {
                 showNotification('Disconnected from peer', true);
                 updateConnectionStatus('disconnected');
+                updateButtonStates();
+            });
+            
+            peer.on('close', () => {
+                updateConnectionStatus('disconnected');
+                updateButtonStates();
             });
             
             updateConnectionStatus('connecting');
+            updateButtonStates();
         }
 
         // Set up a data connection
@@ -886,6 +1173,7 @@
                 });
                 
                 showNotification('Connected to peer: ' + conn.peer);
+                updateUserList();
             });
             
             conn.on('data', (data) => {
@@ -941,9 +1229,13 @@
                     addMessage(data.message);
                     break;
                     
+                case 'media':
+                    addMediaMessage(data.media);
+                    break;
+                    
                 case 'user_leave':
                     if (users[data.userId]) {
-                        addSystemMessage(users[data.userId].name + ' left the chat');
+                        addSystemMessage(data.userName + ' left the chat');
                         delete users[data.userId];
                         updateUserList();
                     }
@@ -957,6 +1249,7 @@
             if (text && currentUser) {
                 const message = {
                     id: generateId(),
+                    type: 'text',
                     text: text,
                     sender: currentUser.id,
                     senderName: currentUser.name,
@@ -980,6 +1273,33 @@
                 messageInput.value = '';
             }
         }
+        
+        // Send a media message
+        function sendMediaMessage(mediaData) {
+            if (currentUser) {
+                const mediaMessage = {
+                    id: generateId(),
+                    type: mediaData.type,
+                    data: mediaData.data,
+                    sender: currentUser.id,
+                    senderName: currentUser.name,
+                    timestamp: new Date()
+                };
+                
+                // Add to own chat
+                addMediaMessage(mediaMessage);
+                
+                // Send to all connections
+                connections.forEach(conn => {
+                    if (conn.open) {
+                        conn.send({
+                            type: 'media',
+                            media: mediaMessage
+                        });
+                    }
+                });
+            }
+        }
 
         // Add a message to the UI
         function addMessage(message) {
@@ -1000,6 +1320,63 @@
             
             // Add to messages array
             messages.push(message);
+            
+            // If this is a received message and the page is not visible
+            if (!isCurrentUser && !isPageVisible) {
+                incrementUnreadMessages();
+                showDesktopNotification(message.senderName, message.text);
+            }
+        }
+        
+        // Add a media message to the UI
+        function addMediaMessage(mediaMessage) {
+            const messageEl = document.createElement('div');
+            messageEl.classList.add('message', 'media-message');
+            
+            const isCurrentUser = currentUser && mediaMessage.sender === currentUser.id;
+            messageEl.classList.add(isCurrentUser ? 'sent' : 'received');
+            
+            let mediaContent = '';
+            
+            if (mediaMessage.type === 'image') {
+                mediaContent = `<div class="media-content"><img src="${mediaMessage.data}" alt="Sent image"></div>`;
+            } else if (mediaMessage.type === 'video') {
+                mediaContent = `
+                    <div class="media-content">
+                        <video controls>
+                            <source src="${mediaMessage.data}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                `;
+            } else if (mediaMessage.type === 'audio') {
+                mediaContent = `
+                    <div class="media-content">
+                        <audio controls class="audio-player">
+                            <source src="${mediaMessage.data}" type="audio/webm">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                `;
+            }
+            
+            messageEl.innerHTML = `
+                <div class="message-sender">${isCurrentUser ? 'You' : mediaMessage.senderName}</div>
+                ${mediaContent}
+                <div class="message-time">${formatTime(mediaMessage.timestamp)}</div>
+            `;
+            
+            messagesContainer.appendChild(messageEl);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // Add to messages array
+            messages.push(mediaMessage);
+            
+            // If this is a received message and the page is not visible
+            if (!isCurrentUser && !isPageVisible) {
+                incrementUnreadMessages();
+                showDesktopNotification(mediaMessage.senderName, `Sent a ${mediaMessage.type}`);
+            }
         }
 
         // Add a system message
@@ -1045,6 +1422,100 @@
             }
         }
 
+        // Handle image selection
+        function handleImageSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    sendMediaMessage({
+                        type: 'image',
+                        data: event.target.result
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+            // Reset the input
+            e.target.value = '';
+        }
+        
+        // Handle video selection
+        function handleVideoSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    sendMediaMessage({
+                        type: 'video',
+                        data: event.target.result
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+            // Reset the input
+            e.target.value = '';
+        }
+        
+        // Toggle audio recording
+        function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+        
+        // Start audio recording
+        function startRecording() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        mediaRecorder = new MediaRecorder(stream);
+                        audioChunks = [];
+                        
+                        mediaRecorder.ondataavailable = (e) => {
+                            audioChunks.push(e.data);
+                        };
+                        
+                        mediaRecorder.onstop = () => {
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                                sendMediaMessage({
+                                    type: 'audio',
+                                    data: reader.result
+                                });
+                            };
+                            reader.readAsDataURL(audioBlob);
+                            
+                            // Stop all tracks in the stream
+                            stream.getTracks().forEach(track => track.stop());
+                        };
+                        
+                        mediaRecorder.start();
+                        isRecording = true;
+                        recordButton.classList.add('recording');
+                        recordingIndicator.classList.add('active');
+                    })
+                    .catch(error => {
+                        console.error('Error accessing microphone:', error);
+                        showNotification('Could not access microphone. Please check permissions.', true);
+                    });
+            } else {
+                showNotification('Your browser does not support audio recording', true);
+            }
+        }
+        
+        // Stop audio recording
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                recordButton.classList.remove('recording');
+                recordingIndicator.classList.remove('active');
+            }
+        }
+
         // Copy peer ID to clipboard
         function copyPeerId() {
             if (peer && peer.id) {
@@ -1061,28 +1532,34 @@
 
         // Disconnect from all peers
         function disconnect() {
+            if (isRecording) {
+                stopRecording();
+            }
+            
             if (peer) {
                 // Notify all connections that we're leaving
                 connections.forEach(conn => {
                     if (conn.open) {
                         conn.send({
                             type: 'user_leave',
-                            userId: currentUser.id
+                            userId: currentUser.id,
+                            userName: currentUser.name
                         });
+                        conn.close();
                     }
                 });
                 
                 peer.destroy();
+                peer = null;
             }
             
             // Reset state
             connections = [];
             users = {};
             connectionAttempts = {};
+            
+            // Update UI
             updateConnectionStatus('disconnected');
-            messageInput.disabled = true;
-            sendMessageBtn.disabled = true;
-            copyPeerIdBtn.disabled = true;
             peerIdDisplay.textContent = 'Not connected';
             currentPeerId.textContent = 'Not connected';
             
@@ -1096,6 +1573,9 @@
             
             addSystemMessage('Disconnected from all peers');
             showNotification('Disconnected from all peers');
+            
+            // Update button states
+            updateButtonStates();
         }
 
         // Update connection status UI
@@ -1106,23 +1586,14 @@
                 case 'connected':
                     statusIndicator.classList.add('status-connected');
                     connectionStatus.textContent = 'Connected';
-                    disconnectBtn.disabled = false;
-                    hostServerBtn.disabled = true;
-                    showConnectModalBtn.disabled = true;
                     break;
                 case 'connecting':
                     statusIndicator.classList.add('status-connecting');
                     connectionStatus.textContent = 'Connecting...';
-                    disconnectBtn.disabled = false;
-                    hostServerBtn.disabled = true;
-                    showConnectModalBtn.disabled = true;
                     break;
                 case 'disconnected':
                     statusIndicator.classList.add('status-disconnected');
                     connectionStatus.textContent = 'Disconnected';
-                    disconnectBtn.disabled = true;
-                    hostServerBtn.disabled = false;
-                    showConnectModalBtn.disabled = false;
                     break;
             }
         }
@@ -1151,6 +1622,41 @@
                     notification.remove();
                 }, 300);
             }, 3000);
+        }
+        
+        // Show desktop notification
+        function showDesktopNotification(sender, message) {
+            if (!notificationPermission || !("Notification" in window)) {
+                return;
+            }
+            
+            if (Notification.permission === "granted") {
+                new Notification(sender + " - Beh Beh Chat", {
+                    body: message,
+                    icon: "https://media.tenor.com/6fwaqkP8tP0AAAAC/niche-fruit.gif"
+                });
+            }
+        }
+        
+        // Increment unread messages count
+        function incrementUnreadMessages() {
+            unreadMessages++;
+            updateTitle();
+        }
+        
+        // Reset unread messages count
+        function resetUnreadMessages() {
+            unreadMessages = 0;
+            updateTitle();
+        }
+        
+        // Update document title with unread count
+        function updateTitle() {
+            if (unreadMessages > 0) {
+                document.title = `(${unreadMessages}) ${originalTitle}`;
+            } else {
+                document.title = originalTitle;
+            }
         }
 
         // Helper functions
