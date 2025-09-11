@@ -1040,7 +1040,7 @@
             connectRoomCodeInput.focus();
         }
 
-        // Activate server
+        // Activate server - FIXED VERSION
         function activateServer() {
             const key = serverKeyInput.value.trim();
             const roomCode = roomCodeInput.value.trim();
@@ -1064,8 +1064,7 @@
         function connectToServer() {
             const roomCode = connectRoomCodeInput.value.trim();
             if (roomCode.length === 3) {
-                const remoteId = 'beh-' + roomCode;
-                initializePeer(false, remoteId);
+                initializePeer(false, roomCode);
                 connectModal.style.display = 'none';
                 connectRoomCodeInput.value = '';
             } else {
@@ -1073,13 +1072,13 @@
             }
         }
 
-        // Initialize PeerJS
-        function initializePeer(isHost, idParam = null) {
+        // Initialize PeerJS - FIXED VERSION
+        function initializePeer(isHost, roomCode = null) {
             // Generate a peer ID based on whether we're hosting or connecting
             let peerId;
             if (isHost) {
                 // For host, use the room code to create a custom ID
-                peerId = 'beh-' + idParam;
+                peerId = 'behbeh-' + roomCode;
             } else {
                 // For client, let PeerJS generate a random ID
                 peerId = undefined;
@@ -1111,10 +1110,10 @@
                     addSystemMessage('You are now hosting the chat. Your ID: ' + id);
                 } else {
                     showNotification('Connected with ID: ' + id);
-                    peerIdDisplay.textContent = 'Connected to: ' + idParam;
+                    peerIdDisplay.textContent = 'Connected to: behbeh-' + roomCode;
                     
                     // Connect to the remote peer
-                    const conn = peer.connect(idParam);
+                    const conn = peer.connect('behbeh-' + roomCode);
                     setupConnection(conn);
                 }
                 
@@ -1134,7 +1133,14 @@
             
             peer.on('error', (err) => {
                 console.error('Peer error:', err);
-                showNotification('Connection error: ' + err.type, true);
+                
+                // Handle specific error cases
+                if (err.type === 'unavailable-id') {
+                    showNotification('Room code already taken. Please try a different one.', true);
+                } else {
+                    showNotification('Connection error: ' + err.type, true);
+                }
+                
                 updateConnectionStatus('disconnected');
                 updateButtonStates();
             });
